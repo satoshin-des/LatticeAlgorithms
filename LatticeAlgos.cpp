@@ -61,27 +61,6 @@ double dot(const std::vector<auto> x, const std::vector<auto> y){
   return z;
 }
 
-//=========================================
-//Computes General inner product of vectors x and y
-//=========================================
-double InnerProduct(const std::vector<auto> x, const std::vector<auto> y, const std::vector<auto> v){
-  double z = 0.0;
-  const int n = x.size();
-  for(int i = 0; i < n; ++i) z += x.at(i) * v.at(i) * y.at(i);
-  return z;
-}
-
-//=========================================
-//Computes General inner product of vectors x and y
-//=========================================
-double InnerProductVer2(const std::vector<auto> x, const std::vector<auto> y, const int p){
-  double z = 0.0;
-  const int n = x.size();
-  for(int i = 0; i < n; ++i) z += pow(x.at(i), p) * pow(y.at(i), p);
-  return z;
-}
-
-
 //============================================
 //Computes a product of a vector and a matrix.
 //============================================
@@ -120,44 +99,6 @@ std::tuple<std::vector<double>, std::vector<std::vector<double>>> Gram_Schmidt_s
   return std::forward_as_tuple(B, mu);
 }
 
-//==========================================
-//General Gram_Schmidt's orthogonalization algorithm
-//==========================================
-std::tuple<std::vector<double>, std::vector<std::vector<double>>> GeneralGramSchmidt_squared(const std::vector<std::vector<int>> b, const std::vector<auto> v){
-  const int n = b.size(), m = b.at(0).size(); int i, j, k;
-  std::vector<double> B(n);
-  std::vector<std::vector<double>> GSOb(n, std::vector<double>(m)), mu(n, std::vector<double>(n));
-  for(i = 0; i < n; ++i){
-  	mu.at(i).at(i) = 1;//identity matrix
-    for(j = 0; j < m; ++j) GSOb.at(i).at(j) = b.at(i).at(j);
-    for(j = 0; j < i; ++j){
-      mu.at(i).at(j) = InnerProduct(b.at(i), GSOb.at(j), v) / InnerProduct(GSOb.at(j), GSOb.at(j), v);
-      for(k = 0; k < m; ++k) GSOb.at(i).at(k) -= mu.at(i).at(j) * GSOb.at(j).at(k);
-    }
-    B.at(i) = InnerProduct(GSOb.at(i), GSOb.at(i), v);
-  }
-  return std::forward_as_tuple(B, mu);
-}
-
-//==========================================
-//General Gram_Schmidt's orthogonalization algorithm
-//==========================================
-std::tuple<std::vector<double>, std::vector<std::vector<double>>> GeneralGramSchmidt_squaredVer2(const std::vector<std::vector<int>> b, const int p){
-  const int n = b.size(), m = b.at(0).size(); int i, j, k;
-  std::vector<double> B(n);
-  std::vector<std::vector<double>> GSOb(n, std::vector<double>(m)), mu(n, std::vector<double>(n));
-  for(i = 0; i < n; ++i){
-  	mu.at(i).at(i) = 1;//identity matrix
-    for(j = 0; j < m; ++j) GSOb.at(i).at(j) = b.at(i).at(j);
-    for(j = 0; j < i; ++j){
-      mu.at(i).at(j) = InnerProductVer2(b.at(i), GSOb.at(j), p) / InnerProductVer2(GSOb.at(j), GSOb.at(j), p);
-      for(k = 0; k < m; ++k) GSOb.at(i).at(k) -= mu.at(i).at(j) * GSOb.at(j).at(k);
-    }
-    B.at(i) = InnerProductVer2(GSOb.at(i), GSOb.at(i), p);
-  }
-  return std::forward_as_tuple(B, mu);
-}
-
 void SizeReduce(std::vector<std::vector<int>>& b, std::vector<std::vector<double>>& mu, const int i, const int j){
   int q;
   const int m = b.at(0).size();
@@ -181,74 +122,6 @@ void LLLReduce(std::vector<std::vector<int>>& b, const float d = 0.99){
     else{
       for(i = 0; i < m; ++i){tmp = b.at(k - 1).at(i); b.at(k - 1).at(i) = b.at(k).at(i); b.at(k).at(i) = tmp;}
       std::tie(B, mu) = Gram_Schmidt_squared(b);
-      k = std::max(k - 1, 1);
-    }
-  }
-}
-
-void DeepLLLReduce(std::vector<std::vector<int>>& b, const float gamma, const float d = 0.99){
-	const int n = b.size(), m = b.at(0).size(); int j, i;
-	double C;
-	std::vector<int> v;
-  std::vector<std::vector<double>> mu;
-  std::vector<double> B; std::tie(B, mu) = Gram_Schmidt_squared(b);
-  for(int k = 1; k < n;){
-  	print_mat(b);
-  	if(IsZero(b.at(0))) return;
-  	for(j = k - 1; j >= 0; --j) SizeReduce(b, mu, k, j);
-
-  	C = dot(b.at(k), b.at(k));
-  	for(i = 0; i < k;){
-  		if((0 <= i && i <= gamma - 1) || k - i <= gamma){
-  			if(C >= d * B.at(i)){
-  				C -= mu.at(k).at(i) * mu.at(k).at(i) * B.at(i);
-  				++i;
-  			}else{
-  				v = b.at(k);
-  				for(j = k; j > i; --j){
-  					b.at(j) = b.at(j - 1); b.at(i) = v;
-  				}
-  				std::tie(B, mu) = Gram_Schmidt_squared(b);
-  				k = std::max(i - 1, 0);
-  			}
-  		}else break;
-  	}
-  	++k;
-  }
-}
-
-void GeneralLLLReduce(std::vector<std::vector<int>>& b, std::vector<auto> v, const float d = 0.99){
-  const int n = b.size(), m = b.at(0).size(); int j, i;
-  std::vector<std::vector<double>> mu;
-  std::vector<double> B; std::tie(B, mu) = GeneralGramSchmidt_squared(b, v);
-  int tmp;
-  for(int k = 1; k < n;){
-  	printf("%d ", k);
-    for(j = k - 1; j > -1; --j) SizeReduce(b, mu, k, j);
-
-    //Checks if the lattice basis matrix b satisfies Lovasz condition.
-    if(B.at(k) >= (d - mu.at(k).at(k - 1) * mu.at(k).at(k - 1)) * B.at(k - 1)) ++k;
-    else{
-      for(i = 0; i < m; ++i){tmp = b.at(k - 1).at(i); b.at(k - 1).at(i) = b.at(k).at(i); b.at(k).at(i) = tmp;}
-      std::tie(B, mu) = GeneralGramSchmidt_squared(b, v);
-      k = std::max(k - 1, 1);
-    }
-  }
-}
-
-void GeneralLLLReduceVer2(std::vector<std::vector<int>>& b, const int p, const float d = 0.99){
-  const int n = b.size(), m = b.at(0).size(); int j, i;
-  std::vector<std::vector<double>> mu;
-  std::vector<double> B; std::tie(B, mu) = GeneralGramSchmidt_squaredVer2(b, p);
-  int tmp;
-  for(int k = 1; k < n;){
-    for(j = k - 1; j > -1; --j) SizeReduce(b, mu, k, j);
-
-    //Checks if the lattice basis matrix b satisfies Lovasz condition.
-    if(B.at(k) >= (d - mu.at(k).at(k - 1) * mu.at(k).at(k - 1)) * B.at(k - 1)) ++k;
-    else{
-      for(i = 0; i < m; ++i){tmp = b.at(k - 1).at(i); b.at(k - 1).at(i) = b.at(k).at(i); b.at(k).at(i) = tmp;}
-      std::tie(B, mu) = GeneralGramSchmidt_squaredVer2(b, p);
       k = std::max(k - 1, 1);
     }
   }
@@ -327,10 +200,10 @@ int main(int argc, char **argv){
 
 		v.at(i) = std::abs(rand_bound(mt)) % n;
 	}
-	b_copy = b;
+	//b_copy = b;
 
 	puts("Input lattice basis matrix:");
-	print_mat(b_copy);
+	print_mat(b);
 
 	//LLLreduce
 	LLLReduce(b);
